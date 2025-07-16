@@ -1,4 +1,3 @@
-
 @import url("https://cdnjs.cloudflare.com/ajax/libs/meyer-reset/2.0/reset.min.css");
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
@@ -25,7 +24,6 @@ body {
   color: #1a1a1a;
 }
 
-
 button:focus-visible {
   outline: 2px solid #0052cc;
   outline-offset: 2px;
@@ -35,7 +33,6 @@ a {
   text-decoration: none;
   color: inherit;
 }
-
 
 .navbar {
   display: flex;
@@ -65,11 +62,31 @@ a {
   border-radius: 6px;
   font-weight: 500;
   transition: background-color 0.2s ease-in-out;
+  cursor: pointer;
 }
+
+.drop > a {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.drop > a::after {
+  content: '▼';
+  font-size: 12px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.drop.active > a::after {
+  transform: rotate(180deg);
+}
+
 .drop:hover > a,
-.menu > a:hover {
+.menu > a:hover,
+.drop.active > a {
   background-color: #f2f3f5;
 }
+
 .drop-con {
   position: absolute;
   top: 100%;
@@ -82,14 +99,17 @@ a {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-10px);
-  transition: all 0.3s ease-in-out;
+  transition: all 0.2s ease-in-out;
   z-index: 1000;
 }
-.drop:hover .drop-con {
+
+.drop:hover .drop-con,
+.drop.active .drop-con {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
+
 .drop-in {
   max-width: 1200px;
   margin: 0 auto;
@@ -97,12 +117,14 @@ a {
   justify-content: space-between;
   gap: 40px;
 }
+
 .drop-col {
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-width: 180px;
 }
+
 .drop-col h3 {
   font-size: 14px;
   color: #888;
@@ -110,6 +132,7 @@ a {
   margin-bottom: 6px;
   text-transform: uppercase;
 }
+
 .drop-col a {
   color: #1a1a1a;
   font-size: 15px;
@@ -118,9 +141,11 @@ a {
   border-radius: 6px;
   transition: background-color 0.2s ease-in-out;
 }
+
 .drop-col a:hover {
   background-color: #f2f3f5;
 }
+
 .drop-col a span {
   display: block;
   font-size: 13px;
@@ -128,6 +153,7 @@ a {
   color: #555;
   margin-top: 4px;
 }
+
 .drop-si {
   background: #f9fafb;
   padding: 20px;
@@ -194,7 +220,6 @@ a {
 .cta a:hover {
   background-color: #f2f3f5;
 }
-
 
 .he {
   max-width: 1200px;
@@ -271,7 +296,6 @@ a {
   height: auto;
   border-radius: 8px;
 }
-
 
 .cli-section {
   max-width: 1200px;
@@ -364,7 +388,7 @@ a {
   font-weight: 600;
   color: #191918;
   line-height: 1.2;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.2px;
 }
 
 .ben-card-image {
@@ -374,7 +398,6 @@ a {
   background-position: center;
   border-radius: 0 0 16px 16px;
 }
-
 
 .ai-notes {
   background: #fef3f1;
@@ -423,7 +446,6 @@ a {
 .templates .ben-card-icon {
   background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2310b981"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.89 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>');
 }
-
 
 .forbes-quote {
   max-width: 1200px;
@@ -497,7 +519,7 @@ a {
   border-radius: 16px;
   opacity: 0;
   transform: scale(0.95);
-  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  transition: opacity 0.2s ease-in-out, transform 0.3s ease-in-out;
 }
 
 .image-display.active {
@@ -516,6 +538,7 @@ a {
   animation: pop 0.3s ease-in-out;
 }
 
+
 #im {
   width: 100%;
   max-width: 1200px;
@@ -532,14 +555,15 @@ a {
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-#ch{
-  display:flex;
-  justify-content:space-around;
+
+#ch {
+  display: flex;
+  justify-content: space-around;
   align-items: center;
   width: 933px;
   height: 139.78px;
   flex-shrink: 0;
-  margin:20px auto;
+  margin: 20px auto;
 }
 
 

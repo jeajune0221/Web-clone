@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Notion 스타일 드롭다운</title>
   <link rel="stylesheet" href="style.css" />
-
+  <style>
+    
+  </style>
 </head>
 <body>
   <nav class="navbar">
@@ -14,8 +16,8 @@
     </div>
 
     <div class="menu">
-      <div class="drop">
-        <a href="#">Notion ▼</a>
+      <div class="drop" id="notion-dropdown">
+        <a href="#" onclick="toggleDropdown('notion-dropdown'); return false;">Notion</a>
         <div class="drop-con">
           <div class="drop-in">
             <div class="drop-col">  
@@ -50,8 +52,8 @@
       <a href="#">AI</a>
       <a href="#">대기업</a>
       <a href="#">가격</a>
-      <div class="drop">
-        <a href="#">둘러보기 ▼</a>
+      <div class="drop" id="explore-dropdown">
+        <a href="#" onclick="toggleDropdown('explore-dropdown'); return false;">둘러보기</a>
         <div class="drop-con">
           <div class="drop-in">
             <div class="drop-col">
@@ -91,10 +93,9 @@
     <div class="cta">
       <a href="./2index.html">로그인</a>
       <a href="./2index.html">
-      <button>무료로 사용하기</button>
-    </a>
+        <button>무료로 사용하기</button>
+      </a>
     </div>
-
   </nav>
   
   <div class="he">
@@ -212,7 +213,6 @@
     <img id="ch" src="./images/char.png" alt="이미지">
   </div>
 
-
   <footer class="footer">
     <div class="footer-container">
       <div class="footer-content">
@@ -308,6 +308,75 @@
   </footer>
   
   <script>
+    let activeDropdown = null;
+
+    function toggleDropdown(dropdownId) {
+      const dropdown = document.getElementById(dropdownId);
+      const isCurrentlyActive = dropdown.classList.contains('active');
+      
+      closeAllDropdowns();
+      
+      if (!isCurrentlyActive) {
+        dropdown.classList.add('active');
+        activeDropdown = dropdown;
+      }
+    }
+
+    function closeAllDropdowns() {
+      const dropdowns = document.querySelectorAll('.drop');
+      dropdowns.forEach(dropdown => {
+        dropdown.classList.remove('active');
+      });
+      activeDropdown = null;
+    }
+
+    document.addEventListener('click', function(event) {
+      const clickedElement = event.target;
+      const isDropdownClick = clickedElement.closest('.drop');
+      
+      if (!isDropdownClick) {
+        closeAllDropdowns();
+      }
+    });
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeAllDropdowns();
+      }
+    });
+
+    document.querySelectorAll('.drop-con a').forEach(link => {
+      link.addEventListener('click', function(event) {
+        setTimeout(() => {
+          closeAllDropdowns();
+        }, 100);
+      });
+    });
+
+    document.querySelectorAll('.drop').forEach(dropdown => {
+      let hoverTimeout;
+      
+      dropdown.addEventListener('mouseenter', function() {
+        clearTimeout(hoverTimeout);
+        if (!this.classList.contains('active')) {
+          closeAllDropdowns();
+          this.classList.add('active');
+          activeDropdown = this;
+        }
+      });
+      
+      dropdown.addEventListener('mouseleave', function() {
+        hoverTimeout = setTimeout(() => {
+          if (this.classList.contains('active')) {
+            this.classList.remove('active');
+            if (activeDropdown === this) {
+              activeDropdown = null;
+            }
+          }
+        }, 100);
+      });
+    });
+
     function showim(button) {
       const value = button.value;
       const img = document.getElementById("team-img");

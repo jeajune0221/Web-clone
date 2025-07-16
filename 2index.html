@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>재준의 Notion</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="2style.css" />
+</head>
+<body>
+  <div class="sid">
+    <div class="sid-header">
+      <div class="workspace-selector">
+        <div class="workspace-icon">재</div>
+        <div>
+          <div style="font-size: 14px; font-weight: 600;">재준의 Notion</div>
+          <div style="font-size: 12px; color: #999;">개인 워크스페이스</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-box">
+      <input type="text" class="search-input" placeholder="검색" id="searchInput">
+      <div class="search-icon">🔍</div>
+    </div>
+
+    <div class="sid-content">
+      <div class="nav-section">
+        <div class="nav-item active" id="searchNav" onclick="showSearch()">
+          <div class="nav-item-icon">🔍</div>
+          <span>검색</span>
+        </div>
+        <div class="nav-item" id="updatesNav" onclick="showUpdates()">
+          <div class="nav-item-icon">🔔</div>
+          <span>업데이트</span>
+        </div>
+        <div class="nav-item" id="allUpdatesNav" onclick="showAllUpdates()">
+          <div class="nav-item-icon">🕒</div>
+          <span>모든 업데이트</span>
+        </div>
+        <div class="nav-item" id="inboxNav" onclick="showInbox()">
+          <div class="nav-item-icon">✉️</div>
+          <span>받은 편지함</span>
+        </div>
+      </div>
+
+      <div class="pages-section">
+        <div class="pages-header">
+          <div class="pages-title">개인 페이지</div>
+          <button class="add-page-btn" onclick="showNewPageModal()">+</button>
+        </div>
+        <div id="pagesList">
+        </div>
+      </div>
+    </div>
+
+    <div class="sid-footer">
+      <div class="user-profile">
+        <div class="user-avatar">재</div>
+        <div>
+          <div style="font-size: 14px;">재준</div>
+          <div style="font-size: 12px; color: #999;">멤버 초대</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="main-header">
+      <div class="breadcrumb">
+        <span id="breadcrumbText">🔍 검색</span>
+      </div>
+      <div class="header-actions">
+        <button class="action-btn" id="favoriteBtn" onclick="toggleFavorite()">⭐</button>
+        <button class="action-btn" onclick="shareCurrentPage()">📤</button>
+        <div class="dropdown">
+          <button class="action-btn">⚙️</button>
+          <div class="dropdown-content">
+            <a href="#" onclick="duplicatePage()">페이지 복제</a>
+            <a href="#" onclick="deletePage()">페이지 삭제</a>
+            <a href="#" onclick="exportPage()">내보내기</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-content" id="mainContent">
+    </div>
+  </div>
+
+  <div id="newPageModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">새 페이지 만들기</h3>
+        <button class="modal-close" onclick="hideNewPageModal()">×</button>
+      </div>
+      <input type="text" class="modal-input" placeholder="페이지 제목을 입력하세요" id="newPageTitle">
+      <div class="modal-actions">
+        <button class="modal-btn secondary" onclick="hideNewPageModal()">취소</button>
+        <button class="modal-btn primary" onclick="createNewPageFromModal()">만들기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="autocom-container" class="autocom-list" style="display: none;"></div>
+
+  <script>
+    const commands = [
+      { trigger: '/h1', insert: '# ', description: '헤더1' },
+      { trigger: '/h2', insert: '## ', description: '헤더2' },
+      { trigger: '/h3', insert: '### ', description: '헤더3' },
+      { trigger: '/ul', insert: '- ', description: '리스트' },
+      { trigger: '/ol', insert: '1. ', description: '숫자 리스트' },
+      { trigger: '/quote', insert: '> ', description: '인용' },
+      { trigger: '/code', insert: '```', description: '코드 블록' },
+      { trigger: '/link', insert: '[text](url)', description: '링크' },
+      { trigger: '/toggle', insert: '<details><summary>Title</summary>Content</details>', description: '토글' }
+    ];
+
+    let currentPage = null;
+    let currentView = 'search';
+    let recentPages = [];
+    let pages = {
+      '새 페이지': { title: '새 페이지', icon: '📄', content: '', favorite: false, lastModified: new Date() }
+    };
+
+    function init() {
+      updatePagesList();
+      showSearch();
+      setupSearchFunction();
+      setupKeyboardShortcuts();
+      setupModalEnterKey();
+    }
+
+    function updatePagesList() {
+      const pagesList = document.getElementById('pagesList');
+      pagesList.innerHTML = '';
+      
+      Object.keys(pages).forEach(key => {
+        const page = pages[key];
+        const pageItem = document.createElement('div');
+        pageItem.className = 'page-item';
+        pageItem.innerHTML = `
+          <div class="page-icon">${page.icon}</div>
+          <span>${page.title}</span>
+          <div class="page-item-actions">
+            <button class="page-action-btn favorite-btn ${page.favorite ? 'active' : ''}" onclick="togglePageFavorite('${key}')">⭐</button>
+            <button class="page-action-btn" onclick="deletePageConfirm('${key}')">🗑️</button>
+          </div>
+        `;
+        pageItem.onclick = (e) => {
+          if (!e.target.classList.contains('page-action-btn')) {
+            loadPage(key);
+          }
+        };
+        pagesList.appendChild(pageItem);
+      });
+    }
+
+    function showSearch() {
+      currentView = 'search';
+      updateActiveNavItem('searchNav');
+      document.getElementById('breadcrumbText').textContent = '🔍 검색';
+      document.getElementById('favoriteBtn').style.display = 'none';
+      
+      document.getElementById('mainContent').innerHTML = `
+        <div class="welcome-section">
+          <div class="welcome-icon">👋</div>
+          <h1 class="welcome-title">안녕하세요.</h1>
+          <p class="welcome-subtitle">워크스페이스에서 무엇이든질문하거나 찾아보세요...</p>
+          
+          <div class="quick-actions">
+            <button class="quick-action" onclick="showTemplates()">
+              <span>✏️</span>
+              <span>질문</span>
+            </button>
+            <button class="quick-action" onclick="showTemplates()">
+              <span>📋</span>
+              <span>리서치</span>
+            </button>
+            <button class="quick-action" onclick="showTemplates()">
+              <span>🗂️</span>
+              <span>만들기</span>
+            </button>
+          </div>
+
+          <div class="templates-section">
+            <h3 class="templates-title">빠른 방법</h3>
+            <div class="templates-grid">
+              <div class="template-card" onclick="loadPage('새 페이지')">
+                <div class="template-icon">📄</div>
+                <div class="template-title">새 페이지</div>
+                <div class="template-description">빈 페이지로 시작하기</div>
+              </div>
+              <div class="template-card" onclick="showTemplates()">
+                <div class="template-icon">🔬</div>
+                <div class="template-title">과학 프로젝트</div>
+                <div class="template-description">실험 기록 및 분석</div>
+              </div>
+              <div class="template-card" onclick="showTemplates()">
+                <div class="template-icon">🏆</div>
+                <div class="template-title">해커톤</div>
+                <div class="template-description">프로젝트 계획 수립</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="recent-section">
+            <h3 class="recent-title">최근 열람</h3>
+            <div class="recent-grid" id="recentGrid">
+            </div>
+          </div>
+        </div>
+      `;
+      updateRecentSection();
+    }
+
+    function showUpdates() {
+      currentView = 'updates';
+      updateActiveNavItem('updatesNav');
+      document.getElementById('breadcrumbText').textContent = '🔔 업데이트';
+      document.getElementById('favoriteBtn').style.display = 'none';
+
+      document.getElementById('mainContent').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🔔</div>
+          <div class="empty-state-title">업데이트 없음</div>
+          <div class="empty-state-description">최신 업데이트가 없습니다.</div>
+        </div>
+      `;
+    }
+
+    function showAllUpdates() {
+      currentView = 'allUpdates';
+      updateActiveNavItem('allUpdatesNav');
+      document.getElementById('breadcrumbText').textContent = '🕒 모든 업데이트';
+      document.getElementById('favoriteBtn').style.display = 'none';
+
+      const sortedPages = Object.keys(pages).sort((a, b) => pages[b].lastModified - pages[a].lastModified).slice(0, 5);
+      const content = sortedPages.length > 0 ? `
+        <div class="recent-section">
+          <h3 class="recent-title">모든 업데이트</h3>
+          <div class="recent-grid">
+            ${sortedPages.map(key => `
+              <div class="recent-card" onclick="loadPage('${key}')">
+                <div class="recent-card-title">${pages[key].title}</div>
+                <div class="recent-card-meta">마지막 수정: ${pages[key].lastModified.toLocaleDateString()}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : `
+        <div class="empty-state">
+          <div class="empty-state-icon">🕒</div>
+          <div class="empty-state-title">업데이트 없음</div>
+          <div class="empty-state-description">페이지가 수정되면 여기에 표시됩니다.</div>
+        </div>
+      `;
+      document.getElementById('mainContent').innerHTML = content;
+    }
+
+    function showInbox() {
+      currentView = 'inbox';
+      updateActiveNavItem('inboxNav');
+      document.getElementById('breadcrumbText').textContent = '✉️ 받은 편지함';
+      document.getElementById('favoriteBtn').style.display = 'none';
+
+      document.getElementById('mainContent').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">✉️</div>
+          <div class="empty-state-title">메시지 없음</div>
+          <div class="empty-state-description">새로운 메시지가 없습니다.</div>
+        </div>
+      `;
+    }
+
+    function showTemplates() {
+      alert("그 기능을 아직 구현되지 않았습니다.");
+    }
+
+    function showDatabase() {
+      currentView = 'database';
+      updateActiveNavItem(null);
+      document.getElementById('breadcrumbText').textContent = '🗂️ 데이터베이스';
+      document.getElementById('favoriteBtn').style.display = 'none';
+
+      document.getElementById('mainContent').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🗂️</div>
+          <div class="empty-state-title">데이터베이스 없음</div>
+          <div class="empty-state-description">새로운 데이터베이스를 만들어보세요.</div>
+        </div>
+      `;
+    }
+
+    function loadPage(key) {
+      if (!pages[key]) {
+        console.error(`Page "${key}" not found`);
+        showSearch();
+        return;
+      }
+      currentPage = key;
+      currentView = 'page';
+      updateActiveNavItem(null);
+      document.getElementById('breadcrumbText').textContent = `${pages[key].icon} ${pages[key].title}`;
+      document.getElementById('favoriteBtn').style.display = 'inline-block';
+      document.getElementById('favoriteBtn').classList.toggle('active', pages[key].favorite);
+
+      recentPages = recentPages.filter(p => p !== key);
+      recentPages.unshift(key);
+      if (recentPages.length > 5) recentPages.pop();
+
+      document.getElementById('mainContent').innerHTML = `
+        <div class="page-content">
+          <h1 class="page-title" contenteditable="true" oninput="updatePageTitle('${key}', this.textContent)">${pages[key].title}</h1>
+          <textarea class="page-editor" id="markdown-input" oninput="updatePageContent('${key}', this.value); renderMarkdown();">${pages[key].content}</textarea>
+          <div class="markdown-preview" id="markdown-preview"></div>
+        </div>
+      `;
+
+      const inputElement = document.getElementById('markdown-input');
+      inputElement.addEventListener('input', (e) => {
+        const cursorPosition = inputElement.selectionStart;
+        const textBeforeCursor = inputElement.value.substring(0, cursorPosition);
+        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+        if (lastSlashIndex >= 0 && cursorPosition - lastSlashIndex <= inputElement.value.substring(lastSlashIndex).split(' ')[0].length + 1) {
+          const commandText = inputElement.value.substring(lastSlashIndex, cursorPosition);
+          showautocomList(commandText, inputElement);
+        } else {
+          document.getElementById('autocom-container').style.display = 'none';
+        }
+        renderMarkdown();
+      });
+
+      renderMarkdown();
+    }
+
+    function renderMarkdown() {
+      const markdownInput = document.getElementById('markdown-input');
+      if (!markdownInput) {
+        console.warn('Markdown input element not found');
+        return;
+      }
+      const markdownText = markdownInput.value || '';
+      const htmlContent = marked.parse(markdownText, { breaks: true, gfm: true, sanitize: true });
+      const preview = document.getElementById('markdown-preview');
+      if (preview) {
+        preview.innerHTML = htmlContent;
+      }
+    }
+
+    function updateRecentSection() {
+      const recentGrid = document.getElementById('recentGrid');
+      if (recentGrid) {
+        recentGrid.innerHTML = recentPages.length > 0 ? recentPages.map(key => `
+          <div class="recent-card" onclick="loadPage('${key}')">
+            <div class="recent-card-title">${pages[key].title}</div>
+            <div class="recent-card-meta">마지막 수정: ${pages[key].lastModified.toLocaleDateString()}</div>
+          </div>
+        `).join('') : `
+          <div class="empty-state">
+            <div class="empty-state-icon">🕒</div>
+            <div class="empty-state-title">최근 페이지 없음</div>
+            <div class="empty-state-description">페이지를 열어보세요.</div>
+          </div>
+        `;
+      }
+    }
+
+    function showautocomList(inputText, inputElement) {
+      const matchingCommands = commands.filter(cmd => cmd.trigger.toLowerCase().startsWith(inputText.toLowerCase()));
+      const autocomContainer = document.getElementById('autocom-container');
+      
+      if (matchingCommands.length === 0 || inputText.length < 1) {
+        autocomContainer.style.display = 'none';
+        return;
+      }
+      
+      autocomContainer.innerHTML = matchingCommands.map(cmd => 
+        `<div class="autocom-item" onclick="insertCommand('${cmd.insert}')">${cmd.description}</div>`
+      ).join('');
+      
+      const rect = inputElement.getBoundingClientRect();
+      const lineHeight = parseInt(window.getComputedStyle(inputElement).lineHeight) || 20;
+      const lines = inputElement.value.substring(0, inputElement.selectionStart).split('\n');
+      const currentLine = lines.length - 1;
+      const topOffset = rect.top + (currentLine * lineHeight) + lineHeight;
+      const leftOffset = rect.left;
+
+      autocomContainer.style.top = `${topOffset}px`;
+      autocomContainer.style.left = `${leftOffset}px`;
+      autocomContainer.style.display = 'block';
+    }
+
+    function insertCommand(insertText) {
+      const inputElement = document.getElementById('markdown-input');
+      const cursorPosition = inputElement.selectionStart;
+      const textBefore = inputElement.value.substring(0, cursorPosition).replace(/\/[^\/\s]*$/, '');
+      const textAfter = inputElement.value.substring(cursorPosition);
+      inputElement.value = `${textBefore}${insertText}${textAfter}`;
+      const newPosition = textBefore.length + insertText.length;
+      inputElement.setSelectionRange(newPosition, newPosition);
+      document.getElementById('autocom-container').style.display = 'none';
+      renderMarkdown();
+    }
+
+    function updatePageTitle(key, title) {
+      pages[key].title = title.trim() || '제목 없음';
+      pages[key].lastModified = new Date();
+      updatePagesList();
+    }
+
+    function updatePageContent(key, content) {
+      pages[key].content = content;
+      pages[key].lastModified = new Date();
+    }
+
+    function togglePageFavorite(key) {
+      pages[key].favorite = !pages[key].favorite;
+      updatePagesList();
+      if (currentPage === key) {
+        document.getElementById('favoriteBtn').classList.toggle('active', pages[key].favorite);
+      }
+    }
+
+    function toggleFavorite() {
+      if (currentPage) {
+        togglePageFavorite(currentPage);
+      }
+    }
+
+    function showNewPageModal() {
+      document.getElementById('newPageModal').style.display = 'block';
+      document.getElementById('newPageTitle').value = '';
+      document.getElementById('newPageTitle').focus();
+    }
+
+    function hideNewPageModal() {
+      document.getElementById('newPageModal').style.display = 'none';
+    }
+
+    function createNewPageFromModal() {
+      const title = document.getElementById('newPageTitle').value.trim();
+      if (!title) {
+        alert('페이지 제목을 입력해주세요.');
+        return;
+      }
+      
+
+      if (pages[title]) {
+        alert('같은 이름의 페이지가 이미 존재합니다.');
+        return;
+      }
+      
+
+      pages[title] = {
+        title: title,
+        icon: '📄',
+        content: '',
+        favorite: false,
+        lastModified: new Date()
+      };
+      
+      hideNewPageModal();
+      updatePagesList();
+      loadPage(title);
+    }
+
+    function deletePageConfirm(key) {
+      if (confirm(`"${pages[key].title}" 페이지를 삭제하시겠습니까?`)) {
+        delete pages[key];
+        updatePagesList();
+        if (currentPage === key) showSearch();
+      }
+    }
+
+    function updateActiveNavItem(activeId) {
+      document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+      if (activeId) document.getElementById(activeId).classList.add('active');
+    }
+
+    function setupSearchFunction() {
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        const filteredPages = Object.keys(pages).filter(key => 
+          key.toLowerCase().includes(query) || pages[key].content.toLowerCase().includes(query)
+        );
+        const pagesList = document.getElementById('pagesList');
+        pagesList.innerHTML = filteredPages.map(key => `
+          <div class="page-item" onclick="loadPage('${key}')">
+            <div class="page-icon">${pages[key].icon}</div>
+            <span>${pages[key].title}</span>
+          </div>
+        `).join('');
+      });
+    }
+
+    function setupKeyboardShortcuts() {
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'n' && e.ctrlKey) {
+          e.preventDefault();
+          showNewPageModal();
+        }
+        if (e.key === 'Escape') {
+          hideNewPageModal();
+        }
+      });
+    }
+
+    function setupModalEnterKey() {
+      document.getElementById('newPageTitle').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          createNewPageFromModal();
+        }
+      });
+    }
+
+    function shareCurrentPage() {
+      alert('페이지가 클립보드에 복사되었습니다: ' + window.location.href + '/' + currentPage);
+    }
+
+    function duplicatePage() {
+      if (!currentPage) return;
+      
+      let newTitle = `${pages[currentPage].title} (복사)`;
+      let counter = 1;
+      
+
+      while (pages[newTitle]) {
+        counter++;
+        newTitle = `${pages[currentPage].title} (복사${counter})`;
+      }
+      
+      pages[newTitle] = { 
+        ...pages[currentPage], 
+        title: newTitle, 
+        lastModified: new Date() 
+      };
+      updatePagesList();
+      loadPage(newTitle);
+    }
+
+    function deletePage() {
+      if (currentPage) {
+        deletePageConfirm(currentPage);
+      }
+    }
+
+    function exportPage() {
+      if (!currentPage) return;
+      
+      const content = pages[currentPage].content;
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${pages[currentPage].title}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    init();
+  </script>
+</body>
+</html>
